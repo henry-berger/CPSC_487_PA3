@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>CPSC 487/587</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.19.1/dist/lil-gui.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.3.0/math.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quaternion@1.5.1/quaternion.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/numeric@1.2.6/numeric-1.2.6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stats.js@0.17.0/build/stats.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+              "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+              "three/": "https://unpkg.com/three@0.160.0/"
+            }
+        }
+    </script>
+</head>
+<body>
+<script type="module">
+    import { ThreeEngine, get_default_lil_gui } from "../js/utils/utils_three.js";
+    import {mul_matrix_matrix} from "../js/utils/utils_math.js";
+    import {refresh_displays} from "../js/utils/utils_three.js";
+
+    // todo: create a visualization that demonstrates your knowledge of displacement-based
+    // todo: distance over SE(3).  Note that this will use your logarithm solution from PS_U3,
+    // todo: so you must finish that prior to starting this problem.
+    // todo: Feel free to make this visualization as creative as you want, or, conversely,
+    // todo: feel free to create a visualization like the one here
+    // todo: https://yale-cpsc-487-587-internal-djrakita-c95fa6c3239a481a48d29a6b0fd.gitlab.io/html/visualizations/SE2_distance2.html
+    // todo: though applied to 3D rotations + translations instead of 2D rotations + translations.
+    // todo: Feel free to use the 3x3 matrix inverse function provided by me below if you want.
+
+    function Rx(theta) {
+        let sin = Math.sin(theta);
+        let cos = Math.cos(theta);
+        return [[1, 0, 0, 0],
+                [0,cos, -sin, 0],
+                [0,sin, cos, 0],
+                [0,0,0,1]];
+    }
+
+    function Ry(theta) {
+        let sin = Math.sin(theta);
+        let cos = Math.cos(theta);
+        return [[cos, 0, sin, 0],
+            [0,1,0, 0],
+            [-sin,0, cos, 0],
+            [0,0,0,1]];
+    }
+
+    function Rz(theta) {
+        let sin = Math.sin(theta);
+        let cos = Math.cos(theta);
+        return [[cos, -sin, 0, 0],
+            [sin,cos, 0, 0],
+            [0,0,1, 0],
+            [0,0,0,1]];
+    }
+
+    function Txyz(x, y, z) {
+        return [[1,0,0,x],
+        [0,1,0,y],
+        [0,0,1,z],
+        [0,0,0,1]]
+    }
+
+    function vec(a) {
+        let b = a.map(element=>element[0]);
+        return [b[0],b[1],b[2]];
+    }
+
+    // A must be a 3x3 matrix in row major order
+    // [[a11, a12, a13], [a21, a22, a23], [a31, a32, a33]]
+    function matrix_inverse_3x3(A) {
+        let det = A[0][0] * (A[1][1] * A[2][2] - A[2][1] * A[1][2]) -
+            A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) +
+            A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+
+        if (det === 0) {
+            return null; // No inverse exists if determinant is 0
+        }
+
+        let cofactors = [
+            [
+                (A[1][1] * A[2][2] - A[2][1] * A[1][2]),
+                -(A[1][0] * A[2][2] - A[1][2] * A[2][0]),
+                (A[1][0] * A[2][1] - A[2][0] * A[1][1])
+            ],
+            [
+                -(A[0][1] * A[2][2] - A[0][2] * A[2][1]),
+                (A[0][0] * A[2][2] - A[0][2] * A[2][0]),
+                -(A[0][0] * A[2][1] - A[2][0] * A[0][1])
+            ],
+            [
+                (A[0][1] * A[1][2] - A[0][2] * A[1][1]),
+                -(A[0][0] * A[1][2] - A[1][0] * A[0][2]),
+                (A[0][0] * A[1][1] - A[1][0] * A[0][1])
+            ]
+        ];
+
+        let adjugate = [
+            [cofactors[0][0] / det, cofactors[1][0] / det, cofactors[2][0] / det],
+            [cofactors[0][1] / det, cofactors[1][1] / det, cofactors[2][1] / det],
+            [cofactors[0][2] / det, cofactors[1][2] / det, cofactors[2][2] / det]
+        ];
+
+        return adjugate;
+    }
+
+    let engine = ThreeEngine.new_default_3d();
+
+    let settings = {
+        roll1: 0,
+        pitch1: 0,
+        yaw1: 0,
+        x1: 0,
+        y1: 0,
+        z1: 0,
+        roll2: 0,
+        pitch2: 0,
+        yaw2: 0,
+        x2: 0,
+        y2: 0,
+        z2: 0,
+    }
+
+    let actions = {
+        reset_1: function() {
+            settings.roll1=0;
+            settings.pitch1=0;
+            settings.yaw1=0;
+            settings.x1=0;
+            settings.y1=0;
+            settings.z1=0;
+            refresh_displays(gui);
+        },
+        reset_2: function() {
+            settings.roll2=0;
+            settings.pitch2=0;
+            settings.yaw2=0;
+            settings.x2=0;
+            settings.y2=0;
+            settings.z2=0;
+            refresh_displays(gui);
+        }
+    };
+
+    let gui = get_default_lil_gui();
+
+    let folder1 = gui.addFolder('Transform 1');
+    folder1.add(settings, 'x1', -2.0, 2.0);
+    folder1.add(settings, 'y1', -2.0, 2.0);
+    folder1.add(settings, 'z1', -2.0, 2.0);
+    folder1.add(settings, 'roll1', -Math.PI, Math.PI);
+    folder1.add(settings, 'pitch1', -Math.PI, Math.PI);
+    folder1.add(settings, 'yaw1', -Math.PI, Math.PI);
+    folder1.add(actions, 'reset_1').name('Reset Matrix');
+
+    let folder2 = gui.addFolder('Transform 2');
+    folder2.add(settings, 'x2', -2.0, 2.0);
+    folder2.add(settings, 'y2', -2.0, 2.0);
+    folder2.add(settings, 'z2', -2.0, 2.0);
+    folder2.add(settings, 'roll2', -Math.PI, Math.PI);
+    folder2.add(settings, 'pitch2', -Math.PI, Math.PI);
+    folder2.add(settings, 'yaw2', -Math.PI, Math.PI);
+    folder2.add(actions, 'reset_2').name('Reset Matrix');
+
+    engine.animation_loop(function() {
+        let m1 = mul_matrix_matrix(Ry(settings.pitch1), Rx(settings.roll1));
+        m1 = mul_matrix_matrix(Rz(settings.yaw1), m1);
+        m1 = mul_matrix_matrix(Txyz(settings.x1, settings.y1, settings.z1), m1);
+
+        let xhat = [[1],[0],[0],[1]];
+        let yhat = [[0],[1],[0],[1]];
+        let zhat = [[0],[0],[1],[1]];
+        let origin = [[0],[0],[0],[1]];
+        let o1 = vec(mul_matrix_matrix(m1, origin));
+        let xh1 = vec(mul_matrix_matrix(m1, xhat));
+        let yh1 = vec(mul_matrix_matrix(m1, yhat));
+        let zh1 = vec(mul_matrix_matrix(m1, zhat));
+        engine.draw_debug_vector(o1, xh1, 0.035, undefined, 0x882222);
+        engine.draw_debug_vector(o1, yh1, 0.035, undefined, 0x228822);
+        engine.draw_debug_vector(o1, zh1, 0.035, undefined, 0x222288);
+
+
+        let m2 = mul_matrix_matrix(Ry(settings.pitch2), Rx(settings.roll2));
+        m2 = mul_matrix_matrix(Rz(settings.yaw2), m2);
+        m2 = mul_matrix_matrix(Txyz(settings.x2, settings.y2, settings.z2), m2);
+
+        let o2 = vec(mul_matrix_matrix(m2, origin));
+        let xh2 = vec(mul_matrix_matrix(m2, xhat));
+        let yh2 = vec(mul_matrix_matrix(m2, yhat));
+        let zh2 = vec(mul_matrix_matrix(m2, zhat));
+        engine.draw_debug_vector(o2, xh2, 0.035, undefined, 0xee6666);
+        engine.draw_debug_vector(o2, yh2, 0.035, undefined, 0x66ee66);
+        engine.draw_debug_vector(o2, zh2, 0.035, undefined, 0x6666ee);
+
+    })
+
+</script>
+</body>
+</html>
