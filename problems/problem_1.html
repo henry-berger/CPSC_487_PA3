@@ -21,8 +21,9 @@
 <body>
 <script type="module">
     import { ThreeEngine, get_default_lil_gui } from "../js/utils/utils_three.js";
-    import {mul_matrix_matrix} from "../js/utils/utils_math.js";
+    import {mul_matrix_matrix, transpose} from "../js/utils/utils_math.js";
     import {refresh_displays} from "../js/utils/utils_three.js";
+    import {mul_matrix_scalar, sub_matrix_matrix} from "../js/utils/utils_math";
 
     // todo: create a visualization that demonstrates your knowledge of displacement-based
     // todo: distance over SE(3).  Note that this will use your logarithm solution from PS_U3,
@@ -32,6 +33,29 @@
     // todo: https://yale-cpsc-487-587-internal-djrakita-c95fa6c3239a481a48d29a6b0fd.gitlab.io/html/visualizations/SE2_distance2.html
     // todo: though applied to 3D rotations + translations instead of 2D rotations + translations.
     // todo: Feel free to use the 3x3 matrix inverse function provided by me below if you want.
+
+    function sqrtpi2(x) {
+        return Math.PI * Math.sqrt(0.5*(x+1));
+    }
+
+    function so3_log(m) {
+        let tr = m[0][0] + m[1][1] + m[2][2];
+        let beta = Math.acos((tr-1)/2);
+
+        if (Math.abs(beta) < 0.0001) {
+            let mult = 0.5 + beta**2/12+7*beta**4/720;
+            return mul_matrix_scalar(mult, sub_matrix_matrix(m, transpose(m)));
+        } else if ((beta > Math.PI-0.0001) || (beta < -Math.PI+0.0001)) {
+            return [[0,-sqrtpi2(m[3][3]), sqrtpi2(m[2][2])],
+                    [sqrtpi2(m[3][3]), 0, -sqrtpi2(m[1][1])],
+                    [-sqrtpi2(m[2][2]),sqrtpi2(m[1][1]),0]
+            ];
+        } else {
+            let mult = beta / (2*Math.sin(beta));
+            return mul_matrix_scalar(mult, sub_matrix_matrix(m, transpose(m)));
+        }
+    }
+
 
     function Rx(theta) {
         let sin = Math.sin(theta);
