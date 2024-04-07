@@ -200,6 +200,7 @@
         x2: 0,
         y2: 0,
         z2: 0,
+        t: 0,
         dist: 0,
         m11: 0,
         m12: 0,
@@ -255,6 +256,7 @@
     folder2.add(settings, 'pitch2', -Math.PI, Math.PI);
     folder2.add(settings, 'yaw2', -Math.PI, Math.PI);
     folder2.add(actions, 'reset_2').name('Reset Matrix');
+    gui.add(settings, 't', 0, 1).name("SE(3) interpolation");
     gui.add(settings, 'dist').name("Disp based dis").disable();
     gui.add(settings, 'm11').disable();
     gui.add(settings, 'm12').disable();
@@ -268,34 +270,45 @@
     gui.add(settings, 'm32').disable();
     gui.add(settings, 'm33').disable();
     gui.add(settings, 'm34').disable();
+
+    function plot_mat(engine, m, color_low, color_high) {
+        let xhat = [[1],[0],[0],[1]];
+        let yhat = [[0],[1],[0],[1]];
+        let zhat = [[0],[0],[1],[1]];
+        let origin = [[0],[0],[0],[1]];
+        let o = vec(mul_matrix_matrix(m, origin));
+        let xh = vec(mul_matrix_matrix(m, xhat));
+        let yh = vec(mul_matrix_matrix(m, yhat));
+        let zh = vec(mul_matrix_matrix(m, zhat));
+        engine.draw_debug_vector(o, xh, 0.035, undefined, color_high*(0x010000) + color_low*(0x000100));
+        engine.draw_debug_vector(o, yh, 0.035, undefined, color_high*(0x000100) + color_low*(0x000001));
+        engine.draw_debug_vector(o, zh, 0.035, undefined, color_high*(0x000001) + color_low*(0x010000));
+    }
+
+    function interpol(a, b, x) {
+        return a.map((number, i) => number * (1-x) + x*b[i]);
+    }
+
+    function double_interpol(a,b,x) {
+        return a.map((vec, i) => interpol(vec, b[i],x));
+    }
+
+
     engine.animation_loop(function() {
         let m1 = mul_matrix_matrix(Ry(settings.pitch1), Rx(settings.roll1));
         m1 = mul_matrix_matrix(Rz(settings.yaw1), m1);
         m1 = mul_matrix_matrix(Txyz(settings.x1, settings.y1, settings.z1), m1);
 
-        let xhat = [[1],[0],[0],[1]];
-        let yhat = [[0],[1],[0],[1]];
-        let zhat = [[0],[0],[1],[1]];
-        let origin = [[0],[0],[0],[1]];
-        let o1 = vec(mul_matrix_matrix(m1, origin));
-        let xh1 = vec(mul_matrix_matrix(m1, xhat));
-        let yh1 = vec(mul_matrix_matrix(m1, yhat));
-        let zh1 = vec(mul_matrix_matrix(m1, zhat));
-        engine.draw_debug_vector(o1, xh1, 0.035, undefined, 0x882222);
-        engine.draw_debug_vector(o1, yh1, 0.035, undefined, 0x228822);
-        engine.draw_debug_vector(o1, zh1, 0.035, undefined, 0x222288);
-
         let m2 = mul_matrix_matrix(Ry(settings.pitch2), Rx(settings.roll2));
         m2 = mul_matrix_matrix(Rz(settings.yaw2), m2);
         m2 = mul_matrix_matrix(Txyz(settings.x2, settings.y2, settings.z2), m2);
 
-        let o2 = vec(mul_matrix_matrix(m2, origin));
-        let xh2 = vec(mul_matrix_matrix(m2, xhat));
-        let yh2 = vec(mul_matrix_matrix(m2, yhat));
-        let zh2 = vec(mul_matrix_matrix(m2, zhat));
-        engine.draw_debug_vector(o2, xh2, 0.035, undefined, 0xee6666);
-        engine.draw_debug_vector(o2, yh2, 0.035, undefined, 0x66ee66);
-        engine.draw_debug_vector(o2, zh2, 0.035, undefined, 0x6666ee);
+        let m3 = double_interpol(m1, m2, settings.t);
+        m3[3][3]=1;
+
+        plot_mat(engine, m3, 0xbb, 0x66);
+        plot_mat(engine, m1, 0xee, 0xaa);
+        plot_mat(engine, m2, 0x66, 0x33);
 
         let disp = mul_matrix_matrix(se3_inv(m1), m2);
         let lndisp = vee(se3_log(disp));
