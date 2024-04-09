@@ -26,6 +26,39 @@
     // todo: open-ended.  Be as creative as you want, or feel free to recreate any of the visualizations
     // todo: found in Section 3.3.
 
+    function plot_quat(engine, q, color) {
+        let line_scale = 0.75;
+        engine.draw_debug_vector([0,0,0],[q[1], q[2], q[3]], 0.035, undefined, color);
+        let line_length = Math.max(Math.abs(q[0]),1) * line_scale;
+        let tick_length = 0.25 * line_scale;
+        engine.draw_debug_line([q[1],q[2],q[3]-line_length-0.1], [q[1],q[2],q[3]+line_length+0.1], false, 0.01, color=0x333333);
+        for (let i = tick_length; i < line_length; i += tick_length) {
+            engine.draw_debug_sphere([q[1],q[2],q[3]-i], 0.02, color=0x333333);
+            engine.draw_debug_sphere([q[1],q[2],q[3]+i], 0.02, color=0x333333);
+        }
+        engine.draw_debug_sphere([q[1],q[2],q[3]+q[0]*line_scale], 0.04, 0x888888, 0.8);
+
+    }
+
+    let engine = ThreeEngine.new_default_3d();
+    let settings = {
+        w: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+    }
+
+    let gui = get_default_lil_gui();
+    let folder1 = gui.addFolder('Transform 1');
+    folder1.add(settings, 'x', -2.0, 2.0);
+    folder1.add(settings, 'y', -2.0, 2.0);
+    folder1.add(settings, 'z', -2.0, 2.0);
+    folder1.add(settings, 'w', -2.0, 2.0);
+
+    engine.animation_loop(function() {
+        plot_quat(engine, [settings.w, settings.x, settings.y, settings.z], 0xff3333);
+
+    })
 </script>
 </body>
 </html>
