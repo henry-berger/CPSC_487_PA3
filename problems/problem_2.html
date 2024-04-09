@@ -34,17 +34,21 @@
     let J=2;
     let K=3;
 
-    function plot_quat(engine, q, color=0x0066aa) {
+    function offset_pt(a, b) {
+        return [a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+    }
+
+    function plot_quat(engine, q, color=0x0066aa, size=0.01, offset=[0,0,0]) {
         let line_scale = 0.25;
-        engine.draw_debug_vector([0,0,0],[q[1], q[2], q[3]], 0.035, undefined, color);
+        engine.draw_debug_vector(offset_pt(offset,[0,0,0]),offset_pt(offset,[q[1], q[2], q[3]]), size, undefined, color);
         let line_length = Math.max(Math.abs(q[0]),1) * line_scale;
         let tick_length = 0.25 * line_scale;
-        engine.draw_debug_line([q[1],q[2],q[3]-line_length-0.1], [q[1],q[2],q[3]+line_length+0.1], false, 0.01, color=0x333333);
+        engine.draw_debug_line(offset_pt(offset,[q[1],q[2],q[3]-line_length-0.1]), offset_pt(offset,[q[1],q[2],q[3]+line_length+0.1]), false, size/2, color=0x999999);
         for (let i = tick_length; i < line_length; i += tick_length) {
-            engine.draw_debug_sphere([q[1],q[2],q[3]-i], 0.02, color=0x333333);
-            engine.draw_debug_sphere([q[1],q[2],q[3]+i], 0.02, color=0x333333);
+            engine.draw_debug_sphere(offset_pt(offset,[q[1],q[2],q[3]-i]), size, color=0x999999);
+            engine.draw_debug_sphere(offset_pt(offset,[q[1],q[2],q[3]+i]), size, color=0x999999);
         }
-        engine.draw_debug_sphere([q[1],q[2],q[3]+q[0]*line_scale], 0.04, 0x888888, 0.8);
+        engine.draw_debug_sphere([q[1],q[2],q[3]+q[0]*line_scale], size*3, 0x888888, 0.8);
 
     }
 
@@ -59,20 +63,21 @@
 
     let engine = ThreeEngine.new_default_3d();
 
-    // engine.add_suzanne_monkey_as_mesh_object(0x00eeff);
-    // // engine.toggle_mesh_object_wireframe_visibility(0);
-    //
-    // // this is a list of three-vectors represented in row-major matrix form
-    // let standard_points = engine.get_local_vertex_positions_of_mesh_object(0);
-    //
-    // // this is a list of three-vectors represented in row-major matrix form
-    // let wireframe_points = engine.get_local_vertex_positions_of_mesh_object_wireframe(0);
-    // engine.mesh_objects[0].visible = false;
+    engine.add_suzanne_monkey_as_mesh_object(0x00eeff);
+    // engine.toggle_mesh_object_wireframe_visibility(0);
+
+    // this is a list of three-vectors represented in row-major matrix form
+    let standard_points = engine.get_local_vertex_positions_of_mesh_object(0);
+
+    // this is a list of three-vectors represented in row-major matrix form
+    let wireframe_points = engine.get_local_vertex_positions_of_mesh_object_wireframe(0);
+    engine.mesh_objects[0].visible = false;
 
     let settings = {
         theta: 0,
         phi: 0,
         psi: 0,
+        t: 2,
         x: 0,
         y: 0,
         z: 0,
@@ -83,8 +88,8 @@
     }
 
     let actions = {
-        reset_theta: function() {
-            settings.theta=0;
+        reset_t: function() {
+            settings.t=0;
             refresh_displays(gui);
         },
         reset_all: function() {
@@ -100,7 +105,8 @@
     folder1.add(settings, 'theta', -2*Math.PI, 2*Math.PI);
     folder1.add(settings, 'phi', 0, Math.PI);
     folder1.add(settings, 'psi', -Math.PI, Math.PI);
-    folder1.add(actions, 'reset_theta').name('Reset Theta');
+    folder1.add(settings, 't', 0, 2);
+    folder1.add(actions, 'reset_t').name('Reset Interpolation');
     folder1.add(actions, 'reset_all').name('Reset All');
     // folder1.add(settings, 'x', -2.0, 2.0).name("Unnormed x");
     // folder1.add(settings, 'y', -2.0, 2.0).name("Unnormed y")
@@ -123,6 +129,7 @@
         let sin = Math.sin(settings.theta/2);
         let cos = Math.cos(settings.theta/2);
         let q = [cos, sin*uhat[0], sin*uhat[1], sin*uhat[2]];
+        let qinv = [1,0,0,0];
 
         settings.qw = q[0];
         settings.qx = q[1];
@@ -130,14 +137,25 @@
         settings.qz = q[3];
         refresh_displays(gui);
 
-        let qinv = [q[0],-q[1],-q[2],-q[3]];
-        plot_quat(engine, q, 0xff3333);
-        plot_quat(engine, qinv, 0x3333ff);
-        let standard_points = [[-1,-1,-1],[-1,-1,1],[-1,1,-1],[-1,1,1],[1,-1,-1],[1,-1,1],[1,1,-1],[1,1,1]];
+        if (settings.t < 1) {
+            let sin = Math.sin(settings.t*settings.theta/2);
+            let cos = Math.cos(settings.t*settings.theta/2);
+            q = [cos, sin*uhat[0], sin*uhat[1], sin*uhat[2]];
+        } else {
+            let sin = Math.sin((settings.t-1)*settings.theta/2);
+            let cos = Math.cos((settings.t-1)*settings.theta/2);
+            qinv = [cos, -sin*uhat[0], -sin*uhat[1], -sin*uhat[2]];
+        }
+
+        plot_quat(engine, q, 0xff3333, 0.035, [1,-1,1]);
+        plot_quat(engine, qinv, 0x3333ff, 0.035, [1,-1,1]);
+        let axes = [[2,0,0],[0,2,0],[0,0,2]];
         // standard_points.forEach(p =>
         //     plot_quat(engine, q_multiply(q,[0,p[0],p[1], p[2]]), 0x008844));
         standard_points.forEach(p =>
             plot_quat(engine, q_multiply(q_multiply(q,[0,p[0],p[1], p[2]]),qinv), 0x00ff44));
+        axes.forEach(p =>
+            plot_quat(engine, q_multiply(q_multiply(q,[0,p[0],p[1], p[2]]),qinv), 0x00ffff, 0.035));
         // standard_points.forEach(p =>
         //     plot_quat(engine, q_multiply(q_multiply(q,[0,p[0][0],p[1][0], p[2][0]]),qinv), 0x00ff44));
     })
