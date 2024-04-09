@@ -26,8 +26,16 @@
     // todo: open-ended.  Be as creative as you want, or feel free to recreate any of the visualizations
     // todo: found in Section 3.3.
 
-    function plot_quat(engine, q, color) {
-        let line_scale = 0.75;
+    let W=0;
+    let X=1;
+    let Y=2;
+    let Z=3;
+    let I=1;
+    let J=2;
+    let K=3;
+
+    function plot_quat(engine, q, color=0x0066aa) {
+        let line_scale = 0.25;
         engine.draw_debug_vector([0,0,0],[q[1], q[2], q[3]], 0.035, undefined, color);
         let line_length = Math.max(Math.abs(q[0]),1) * line_scale;
         let tick_length = 0.25 * line_scale;
@@ -40,24 +48,98 @@
 
     }
 
+    function q_multiply(qa, qb) {
+        let w = qa[W]*qb[W]-qa[I]*qb[I]-qa[J]*qb[J]-qa[K]*qb[K];
+        let x = qa[W]*qb[I]+qa[I]*qb[W]+qa[J]*qb[K]-qa[K]*qb[J];
+        let y = qa[W]*qb[J]-qa[I]*qb[K]+qa[J]*qb[W]+qa[K]*qb[I];
+        let z = qa[W]*qb[Z]+qa[I]*qb[J]-qa[J]*qb[I]+qa[K]*qb[W];
+        return [w, x, y, z];
+    }
+
+
     let engine = ThreeEngine.new_default_3d();
+
+    // engine.add_suzanne_monkey_as_mesh_object(0x00eeff);
+    // // engine.toggle_mesh_object_wireframe_visibility(0);
+    //
+    // // this is a list of three-vectors represented in row-major matrix form
+    // let standard_points = engine.get_local_vertex_positions_of_mesh_object(0);
+    //
+    // // this is a list of three-vectors represented in row-major matrix form
+    // let wireframe_points = engine.get_local_vertex_positions_of_mesh_object_wireframe(0);
+    // engine.mesh_objects[0].visible = false;
+
     let settings = {
-        w: 0,
+        theta: 0,
+        phi: 0,
+        psi: 0,
         x: 0,
         y: 0,
         z: 0,
+        qw: 0,
+        qx: 0,
+        qy: 0,
+        qz: 0,
     }
 
+    let actions = {
+        reset_theta: function() {
+            settings.theta=0;
+            refresh_displays(gui);
+        },
+        reset_all: function() {
+            settings.theta=0;
+            settings.phi=0;
+            settings.psi=0;
+            refresh_displays(gui);
+        }
+    };
+
     let gui = get_default_lil_gui();
-    let folder1 = gui.addFolder('Transform 1');
-    folder1.add(settings, 'x', -2.0, 2.0);
-    folder1.add(settings, 'y', -2.0, 2.0);
-    folder1.add(settings, 'z', -2.0, 2.0);
-    folder1.add(settings, 'w', -2.0, 2.0);
-
+    let folder1 = gui.addFolder('Controls');
+    folder1.add(settings, 'theta', -2*Math.PI, 2*Math.PI);
+    folder1.add(settings, 'phi', 0, Math.PI);
+    folder1.add(settings, 'psi', -Math.PI, Math.PI);
+    folder1.add(actions, 'reset_theta').name('Reset Theta');
+    folder1.add(actions, 'reset_all').name('Reset All');
+    // folder1.add(settings, 'x', -2.0, 2.0).name("Unnormed x");
+    // folder1.add(settings, 'y', -2.0, 2.0).name("Unnormed y")
+    // folder1.add(settings, 'z', -2.0, 2.0).name("Unnormed z")
+    let folder2 = gui.addFolder('Quaternion values');
+    folder2.add(settings, 'qw', -1.0, 1.0).disable().name("Quat w");
+    folder2.add(settings, 'qx', -1.0, 1.0).disable().name("Quat x");
+    folder2.add(settings, 'qy', -1.0, 1.0).disable().name("Quat y");
+    folder2.add(settings, 'qz', -1.0, 1.0).disable().name("Quat z");
     engine.animation_loop(function() {
-        plot_quat(engine, [settings.w, settings.x, settings.y, settings.z], 0xff3333);
+        // let norm = Math.sqrt(settings.x**2+settings.y**2+settings.z**2);
+        // let uhat = [0, 0, 0];
+        // if (norm > 0) {
+        //     uhat = [settings.x / norm, settings.y / norm, settings.z / norm];
+        // } else {
+        //     settings.theta = 0;
+        // }
+        let uhat = [Math.sin(settings.phi)*Math.cos(settings.psi), Math.sin(settings.phi)*Math.sin(settings.psi), Math.cos(settings.phi)];
+        engine.draw_debug_line([0,0,0], [uhat[0]*3, uhat[1]*3, uhat[2]*3]);
+        let sin = Math.sin(settings.theta/2);
+        let cos = Math.cos(settings.theta/2);
+        let q = [cos, sin*uhat[0], sin*uhat[1], sin*uhat[2]];
 
+        settings.qw = q[0];
+        settings.qx = q[1];
+        settings.qy = q[2];
+        settings.qz = q[3];
+        refresh_displays(gui);
+
+        let qinv = [q[0],-q[1],-q[2],-q[3]];
+        plot_quat(engine, q, 0xff3333);
+        plot_quat(engine, qinv, 0x3333ff);
+        let standard_points = [[-1,-1,-1],[-1,-1,1],[-1,1,-1],[-1,1,1],[1,-1,-1],[1,-1,1],[1,1,-1],[1,1,1]];
+        // standard_points.forEach(p =>
+        //     plot_quat(engine, q_multiply(q,[0,p[0],p[1], p[2]]), 0x008844));
+        standard_points.forEach(p =>
+            plot_quat(engine, q_multiply(q_multiply(q,[0,p[0],p[1], p[2]]),qinv), 0x00ff44));
+        // standard_points.forEach(p =>
+        //     plot_quat(engine, q_multiply(q_multiply(q,[0,p[0][0],p[1][0], p[2][0]]),qinv), 0x00ff44));
     })
 </script>
 </body>
