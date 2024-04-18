@@ -252,18 +252,20 @@
         z2: 0,
         t: 0,
         dist: 0,
-        m11: 0,
-        m12: 0,
-        m13: 0,
-        m14: 0,
-        m21: 0,
-        m22: 0,
-        m23: 0,
-        m24: 0,
-        m31: 0,
-        m32: 0,
-        m33: 0,
-        m34: 0,
+        show_naive_interpol: false,
+        show_se3_interpol: false,
+        // m11: 0,
+        // m12: 0,
+        // m13: 0,
+        // m14: 0,
+        // m21: 0,
+        // m22: 0,
+        // m23: 0,
+        // m24: 0,
+        // m31: 0,
+        // m32: 0,
+        // m33: 0,
+        // m34: 0,
     }
 
     let actions = {
@@ -293,33 +295,35 @@
     folder1.add(settings, 'x1', -2.0, 2.0);
     folder1.add(settings, 'y1', -2.0, 2.0);
     folder1.add(settings, 'z1', -2.0, 2.0);
-    folder1.add(settings, 'roll1', -Math.PI, Math.PI);
-    folder1.add(settings, 'pitch1', -Math.PI, Math.PI);
     folder1.add(settings, 'yaw1', -Math.PI, Math.PI);
+    folder1.add(settings, 'pitch1', -Math.PI, Math.PI);
+    folder1.add(settings, 'roll1', -Math.PI, Math.PI);
     folder1.add(actions, 'reset_1').name('Reset Matrix');
 
     let folder2 = gui.addFolder('Transform 2');
     folder2.add(settings, 'x2', -2.0, 2.0);
     folder2.add(settings, 'y2', -2.0, 2.0);
     folder2.add(settings, 'z2', -2.0, 2.0);
-    folder2.add(settings, 'roll2', -Math.PI, Math.PI);
-    folder2.add(settings, 'pitch2', -Math.PI, Math.PI);
     folder2.add(settings, 'yaw2', -Math.PI, Math.PI);
+    folder2.add(settings, 'pitch2', -Math.PI, Math.PI);
+    folder2.add(settings, 'roll2', -Math.PI, Math.PI);
     folder2.add(actions, 'reset_2').name('Reset Matrix');
-    gui.add(settings, 't', 0, 1).name("SE(3) interpolation");
+    gui.add(settings, 'show_naive_interpol').name("Show naive interpolation");
+    gui.add(settings, 'show_se3_interpol').name("Show SE(3) interpolation");
+    gui.add(settings, 't', 0, 1).name("Interpolation");
     gui.add(settings, 'dist').name("Disp based dis").disable();
-    gui.add(settings, 'm11').disable();
-    gui.add(settings, 'm12').disable();
-    gui.add(settings, 'm13').disable();
-    gui.add(settings, 'm14').disable();
-    gui.add(settings, 'm21').disable();
-    gui.add(settings, 'm22').disable();
-    gui.add(settings, 'm23').disable();
-    gui.add(settings, 'm24').disable();
-    gui.add(settings, 'm31').disable();
-    gui.add(settings, 'm32').disable();
-    gui.add(settings, 'm33').disable();
-    gui.add(settings, 'm34').disable();
+    // gui.add(settings, 'm11').disable();
+    // gui.add(settings, 'm12').disable();
+    // gui.add(settings, 'm13').disable();
+    // gui.add(settings, 'm14').disable();
+    // gui.add(settings, 'm21').disable();
+    // gui.add(settings, 'm22').disable();
+    // gui.add(settings, 'm23').disable();
+    // gui.add(settings, 'm24').disable();
+    // gui.add(settings, 'm31').disable();
+    // gui.add(settings, 'm32').disable();
+    // gui.add(settings, 'm33').disable();
+    // gui.add(settings, 'm34').disable();
 
     function plot_mat(engine, m, color_low, color_high) {
         let xhat = [[1],[0],[0],[1]];
@@ -365,20 +369,24 @@
         let sum = 0;
         vlndisp.forEach(num => sum += num**2);
         settings.dist = Math.sqrt(sum);
-        settings.m11= m1[0];
-        settings.m12= m1[1];
-        settings.m13= m1[2];
-        settings.m14= m1[3];
-        settings.m21= m2[0];
-        settings.m22= m2[1];
-        settings.m23= m2[2];
-        settings.m24= m2[3];
-        settings.m31= disp[0];
-        settings.m32= disp[1];
-        settings.m33= disp[2];
-        settings.m34= disp[3];
-        plot_mat(engine, m3, 0x99, 0x55);
+        // settings.m11= m1[0];
+        // settings.m12= m1[1];
+        // settings.m13= m1[2];
+        // settings.m14= m1[3];
+        // settings.m21= m2[0];
+        // settings.m22= m2[1];
+        // settings.m23= m2[2];
+        // settings.m24= m2[3];
+        // settings.m31= disp[0];
+        // settings.m32= disp[1];
+        // settings.m33= disp[2];
+        // settings.m34= disp[3];
+        if (settings.show_naive_interpol) {
+            plot_mat(engine, m3, 0x99, 0x55);
+        }
+        if (settings.show_se3_interpol) {
         plot_mat(engine, m4, 0xcc, 0x99);
+        }
         plot_mat(engine, m1, 0xff, 0xcc);
         plot_mat(engine, m2, 0x77, 0x44);
         refresh_displays(gui);

@@ -89,13 +89,14 @@
 
     let actions = {
         reset_t: function() {
-            settings.t=0;
+            settings.t=2;
             refresh_displays(gui);
         },
         reset_all: function() {
             settings.theta=0;
             settings.phi=0;
             settings.psi=0;
+            settings.t=2;
             refresh_displays(gui);
         }
     };
